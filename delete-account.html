@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Account - BookNest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .bg-primary { background-color: #00BFA5; }
+        .text-primary { color: #00BFA5; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <nav class="p-6 flex justify-between items-center max-w-6xl mx-auto w-full">
+        <div class="flex items-center space-x-2">
+            <div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center text-white text-2xl">
+                <i class="fas fa-book-open"></i>
+            </div>
+            <span class="text-2xl font-bold tracking-tight">BookNest</span>
+        </div>
+        <a href="landing_page.html" class="hover:text-primary">Back</a>
+    </nav>
+
+    <section class="flex-1 flex flex-col items-center justify-center px-6">
+        <div id="auth-container" class="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl text-center space-y-6">
+            
+            <!-- STEP 1: LOGIN -->
+            <div id="login-state">
+                <h1 class="text-2xl font-bold">Delete Account</h1>
+                <p class="text-slate-600 mb-6">Mangyaring mag-login muna para makita at makumpirma ang account na buburahin.</p>
+                <button id="loginBtn" class="w-full bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-6 py-3 rounded-xl font-bold flex items-center justify-center transition">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" class="w-5 h-5 mr-3">
+                    Login with Google
+                </button>
+            </div>
+
+            <!-- STEP 2: CONFIRMATION (Hidden initially) -->
+            <div id="confirm-state" class="hidden">
+                <div class="w-20 h-20 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user text-3xl text-primary"></i>
+                </div>
+                <h2 class="text-xl font-bold" id="user-name">User Name</h2>
+                <p class="text-slate-500 text-sm" id="user-email">user@email.com</p>
+                
+                <div class="bg-red-50 p-4 rounded-lg text-red-700 text-sm text-left my-6">
+                    <p class="font-bold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i> Babala:</p>
+                    <ul class="list-disc ml-4 space-y-1">
+                        <li>Mabubura ang lahat ng iyong orders at history.</li>
+                        <li>Mawawala ang iyong wishlist at cart items.</li>
+                        <li>Hindi na mababawi ang account na ito pagkatapos mabura.</li>
+                    </ul>
+                </div>
+
+                <button id="deleteBtn" class="w-full bg-red-500 hover:bg-red-600 text-white px-6 py-4 rounded-xl font-bold shadow-lg transition mb-3">
+                    Confirm & Delete All Data
+                </button>
+                <button id="logoutBtn" class="text-slate-400 text-sm hover:underline">Not my account? Logout</button>
+            </div>
+
+            <!-- STEP 3: LOADING -->
+            <div id="loading-state" class="hidden py-10">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                <p class="mt-4 text-slate-500">Processing request...</p>
+            </div>
+        </div>
+    </section>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getAuth, GoogleAuthProvider, signInWithPopup, deleteUser, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+        import { getDatabase, ref, remove } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+        // GAMITIN ANG IYONG CONFIG NA NASA SCREENSHOT
+        const firebaseConfig = {
+            apiKey: "AIzaSyA0A8MMbgABhy2xJEI2EJdp1QxY_CZBFRE",
+            authDomain: "booknest-2e136.firebaseapp.com",
+            databaseURL: "https://booknest-2e136-default-rtdb.firebaseio.com",
+            projectId: "booknest-2e136",
+            storageBucket: "booknest-2e136.firebasestorage.app",
+            messagingSenderId: "966831238767",
+            appId: "1:966831238767:web:dbc992a230f06234a5e79a",
+            measurementId: "G-XYS1DBTZGQ"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getDatabase(app);
+
+        const loginState = document.getElementById('login-state');
+        const confirmState = document.getElementById('confirm-state');
+        const loadingState = document.getElementById('loading-state');
+        const userName = document.getElementById('user-name');
+        const userEmail = document.getElementById('user-email');
+
+        // Check Login Status
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                userName.innerText = user.displayName || "BookNest User";
+                userEmail.innerText = user.email;
+                loginState.classList.add('hidden');
+                confirmState.classList.remove('hidden');
+            } else {
+                loginState.classList.remove('hidden');
+                confirmState.classList.add('hidden');
+            }
+        });
+
+        // Login Action
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                await signInWithPopup(auth, provider);
+            } catch (error) {
+                alert("Login failed: " + error.message);
+            }
+        });
+
+        // Logout Action
+        document.getElementById('logoutBtn').addEventListener('click', () => signOut(auth));
+
+        // DELETE ACTION
+        document.getElementById('deleteBtn').addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            if (confirm("Sigurado ka na ba? Lahat ng data mo sa BookNest ay mabubura.")) {
+                confirmState.classList.add('hidden');
+                loadingState.classList.remove('hidden');
+
+                try {
+                    const uid = user.uid;
+
+                    // 1. BURAHIN ANG DATA SA DATABASE (Users, Carts, Wishlist, etc.)
+                    await Promise.all([
+                        remove(ref(db, `users/${uid}`)),
+                        remove(ref(db, `carts/${uid}`)),
+                        remove(ref(db, `wishlist/${uid}`)),
+                        remove(ref(db, `user_preferences/${uid}`)),
+                        remove(ref(db, `notifications/users/${uid}`))
+                    ]);
+
+                    // 2. BURAHIN ANG AUTH ACCOUNT
+                    await deleteUser(user);
+                    
+                    alert("Ang iyong account at lahat ng data ay matagumpay na nabura.");
+                    window.location.href = "landing_page.html";
+
+                } catch (error) {
+                    console.error(error);
+                    if (error.code === 'auth/requires-recent-login') {
+                        alert("Security requirement: Mangyaring mag-logout at mag-login ulit bago burahin ang account.");
+                        signOut(auth);
+                    } else {
+                        alert("Error: " + error.message);
+                        loadingState.classList.add('hidden');
+                        confirmState.classList.remove('hidden');
+                    }
+                }
+            }
+        });
+    </script>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-200/40 py-12">
+        <div class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="text-center md:text-left">
+                <div class="flex items-center justify-center md:justify-start gap-2 text-slate-900">
+                    <div class="w-10 h-10 bg-gradient-to-r from-emerald-400 to-sky-400 rounded-2xl flex items-center justify-center text-white">
+                        <i class="fas fa-book-open"></i>
+                    </div>
+                    <span class="font-semibold">BookNest</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-2">Built with ❤️ for readers everywhere.</p>
+                <p class="text-xs text-slate-500 mt-1">© 2026 BookNest.</p>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4 text-xs text-slate-600">
+                <a href="privacy.html" class="hover:text-slate-900">Privacy Policy</a>
+                <a href="terms.html" class="hover:text-slate-900">Terms & Conditions</a>
+                <a href="delete-account.html" class="hover:text-slate-900">Delete Account</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
